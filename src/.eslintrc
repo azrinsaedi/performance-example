@@ -1,0 +1,6 @@
+{
+	"parser": "@babel/eslint-parser",
+	"parserOptions": { "requireConfigFile": false },
+	"extends": ["eslint:recommended"],
+	"env": { "node": true, "es2021": true }
+}

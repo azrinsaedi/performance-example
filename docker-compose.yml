@@ -1,0 +1,29 @@
+version: "3.7"
+services:
+  t05pay:
+    container_name: ${CONTAINER_IMAGE}
+    image: registry.gitlab.com/t05/achieva-swms-middleware:${BRANCH_NAME}
+    restart: unless-stopped
+    env_file: .env
+
+    expose:
+      - ${PORT}
+
+    networks:
+      - web
+      - express-server
+
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=web"
+      - "traefik.http.routers.${CONTAINER_IMAGE}.entrypoints=https"
+      - "traefik.http.routers.${CONTAINER_IMAGE}.rule=Host(`${API_DOMAIN}`)"
+      - "traefik.http.routers.${CONTAINER_IMAGE}.tls=true"
+      - "traefik.http.routers.${CONTAINER_IMAGE}.tls.certresolver=default"
+      - "traefik.http.routers.${CONTAINER_IMAGE}.tls.options=default@file"
+
+networks:
+  web:
+    external: true
+  express-server:
+    external: true
