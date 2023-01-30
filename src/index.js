@@ -10,6 +10,7 @@ import serveStatics from "./libs/serveStatics.js";
 import { genUid, genTag } from "./middlewares/requestIds.js";
 import { errorHandler } from "./middlewares/error.js";
 import exampleRoute from "./routes/example.js";
+import token from "./routes/token.js";
 
 const app = express();
 
@@ -41,6 +42,7 @@ requestLogger(app);
 
 // Routes
 app.use("/example", exampleRoute);
+app.use("/token", token);
 
 // Error Middleware
 app.use(errorHandler);
