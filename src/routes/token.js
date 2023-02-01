@@ -10,27 +10,16 @@ import { AccountId,
 	TransferTransaction,
 	AccountCreateTransaction,
 	AccountBalanceQuery,
-	TokenAssociateTransaction, } from "@hashgraph/sdk";
+	TokenAssociateTransaction,
+	AccountInfoQuery,
+	TokenUpdateTransaction,
+	Hbar } from "@hashgraph/sdk";
 // import { username, password } from "../validators/example.js";
 // import { validatorReplaceBody } from "../validators/validatorHelper.js";
 
-import masterWallet from "./models.js";
-
-const username = "you2uc";
-const password = "sUm64shmQwBCPkuQ";
-const cluster = "you2uc.d8on8ld";
-const dbname = "you2uc";
-
-mongoose.set('strictQuery', false);
-
-mongoose.connect(`mongodb+srv://${username}:${password}@${cluster}.mongodb.net/${dbname}?retryWrites=true&w=majority`);
-
-  const db = mongoose.connection;
-	db.collection("masterWallet");
-  db.on("error", console.error.bind(console, "connection error: "));
-  db.once("open", function () {
-	console.log("Connected successfully");
-  });
+import masterWallet from "./model_masterwallet.js";
+import token from "./model_token.js";
+import tokenClass from "./model_modify_tokenClass.js";
 
 const router = express.Router();
 
@@ -151,7 +140,7 @@ router.post(
 
 
 router.post(
-	"/token-type",
+	"/create-token-type",
 
 	// Request validator
 	// username,
@@ -160,12 +149,8 @@ router.post(
 
 	// Handle request
 	async (req, res) => {
+		const token_data = new token(req.body);
 		try {
-			// const operatorId =  AccountId.fromString("0.0.2405620");
-			// const operatorKey = PrivateKey.fromString("302e020100300506032b657004220420653eb0dac9a22036c71efd27972f6bdb477905d934e1b4c1262d81dc19d29b6e");
-			// const client = Client.forTestnet().setOperator(operatorId, operatorKey);
-			// const treasuryAccountId =  AccountId.fromString("0.0.2399711");
-			// const treasuryKey = PrivateKey.fromString("c30bedfef76ac39e53dfd675efffc2951da0ddfcddddf476f4aec7d5819e223d");
 
 			const operatorId =  AccountId.fromString(req.body.operatorId);
 			const operatorKey = PrivateKey.fromString(req.body.operatorKey);
@@ -175,6 +160,14 @@ router.post(
 			const treasuryAccountId =  AccountId.fromString(req.body.treasuryAccountId);
 			const treasuryKey = PrivateKey.fromString(req.body.treasuryKey);
 
+			const tokenName = req.body.tokenName;
+			const tokenSymbol = req.body.tokenSymbol;
+			const tokenDecimals = req.body.tokenDecimals;
+			var initialSupply = req.body.initialSupply;
+			const peggedCurrency =req.body.peggedCurrency;
+			const peggedValue = req.body.peggedValue;
+			const maxTransactionFee = req.body.maxTransactionFee;
+
 			const supplyKey = PrivateKey.generate();
 			const adminKey = PrivateKey.generate();
 			const kycKey = PrivateKey.generate();
@@ -183,32 +176,91 @@ router.post(
 			const pauseKey = PrivateKey.generate();
 			const feeScheduleKey =  PrivateKey.generate();
 
+			token_data.master_wallet_id = treasuryAccountId; 
+			token_data.token_name = tokenName;
+			token_data.token_symbol = tokenSymbol;
+			token_data.token_decimals = tokenDecimals;
+			token_data.initial_supply = initialSupply;
+			token_data.supply_key = supplyKey;
+			token_data.admin_key = adminKey;
+			token_data.kyc_key = kycKey;
+			token_data.freeze_key = freezeKey;
+			token_data.wipe_key = wipeKey
+			token_data.pause_key = pauseKey
+			token_data.fee_schedule_key = feeScheduleKey;
+			token_data.pegged_currency = peggedCurrency;
+			token_data.pegged_value = peggedValue;
+			token_data.maxTransactionFee = maxTransactionFee;
+			
+
 			var tokenType = req.body.tokenType;
 
-			if (tokenType == 'fungible') {
+			if (tokenType == 'fungible' || tokenType == null) {
 				tokenType = TokenType.FungibleCommon;
 			}
 			else if(tokenType == 'nonfungible'){
 				tokenType = TokenType.NonFungibleUnique;
+				initialSupply = 0;
 			}
+			token_data.token_type = tokenType;
 
-			// CREATE FUNGIBLE TOKEN (STABLECOIN)
-			let tokenCreateTx = await new TokenCreateTransaction()
-				.setTokenName("USD Bar")
-				.setTokenSymbol("USDB")
-				.setTokenType(tokenType)
-				.setDecimals(2)
-				.setInitialSupply(10000)
-				.setAdminKey(adminKey)
-				.setKycKey(kycKey)
-				.setFreezeKey(freezeKey)
-				.setWipeKey(wipeKey)
-				.setPauseKey(pauseKey)
-				.setFeeScheduleKey(feeScheduleKey)
-				.setTreasuryAccountId(treasuryAccountId)
-				.setSupplyType(TokenSupplyType.Infinite)
-				.setSupplyKey(supplyKey)
-				.freezeWith(client);
+			var supplyType = req.body.supplyType
+
+			if (supplyType == 'infinite' || supplyType == null){
+				supplyType = TokenSupplyType.Infinite
+			}
+			else if(supplyType == 'finite'){
+				supplyType = TokenSupplyType.Finite;
+			}
+			token_data.supply_type = supplyType;
+
+			var maxSupply = req.body.maxSupply;
+			token_data.max_supply = maxSupply;
+
+			let tokenCreateTx;
+			//CREATE NFT
+				if (req.body.supplyType == "finite"){
+					tokenCreateTx = await new TokenCreateTransaction()
+					.setTokenName(tokenName)
+					.setTokenSymbol(tokenSymbol)
+					.setTokenType(tokenType)
+					.setDecimals(tokenDecimals)
+					.setInitialSupply(initialSupply)
+					.setAdminKey(adminKey)
+					.setKycKey(kycKey)
+					.setFreezeKey(freezeKey)
+					.setWipeKey(wipeKey)
+					.setPauseKey(pauseKey)
+					.setFeeScheduleKey(feeScheduleKey)
+					.setTreasuryAccountId(treasuryAccountId)
+					.setSupplyType(supplyType)
+					.setSupplyKey(supplyKey)
+					.setMaxSupply(maxSupply)
+					.setMaxTransactionFee(new Hbar(maxTransactionFee))
+					.freezeWith(client);
+
+				}
+
+				else {
+					// CREATE FUNGIBLE TOKEN (STABLECOIN)
+					tokenCreateTx = await new TokenCreateTransaction()
+					.setTokenName(tokenName)
+					.setTokenSymbol(tokenSymbol)
+					.setTokenType(tokenType)
+					.setDecimals(tokenDecimals)
+					.setInitialSupply(initialSupply)
+					.setAdminKey(adminKey)
+					.setKycKey(kycKey)
+					.setFreezeKey(freezeKey)
+					.setWipeKey(wipeKey)
+					.setPauseKey(pauseKey)
+					.setFeeScheduleKey(feeScheduleKey)
+					.setTreasuryAccountId(treasuryAccountId)
+					.setSupplyType(supplyType)
+					.setSupplyKey(supplyKey)
+					.setMaxTransactionFee(new Hbar(maxTransactionFee))
+					.freezeWith(client);
+				}
 
 			// //SIGN WITH TREASURY KEY
 			let tokenCreateSign = await (await (await tokenCreateTx.sign(treasuryKey)).sign(adminKey));
@@ -221,15 +273,89 @@ router.post(
 
 			// //GET THE TOKEN ID
 			let tokenId = tokenCreateRx.tokenId;
+			token_data.token_id = tokenId;
 
-			// //LOG THE TOKEN ID TO THE CONSOLE
-			console.log(`- Created token with ID: ${tokenId} \n`);
-			console.log(`- Supply Key is ${supplyKey} \n`)
-			console.log(`- Admin Key is ${adminKey} \n`)
-
-			// const user_name = req.body.user;
-			// console.log(user_name);
+			await token_data.save();
 			res.send({ success: true });
+		} catch (err) {
+			addBreadcrumb(req.tag, err);
+			res.status(500).send({
+				success: false,
+				msg: err.message,
+			});
+		}
+	}
+);
+
+router.post(
+	"/master-account-details",
+
+	// Request validator
+	// username,
+	// password,
+	// validatorReplaceBody,
+
+	// Handle request
+	async (req, res) => {
+		// const token_data = new token(req.body);
+		try {
+			const operatorId =  AccountId.fromString(req.body.operatorId);
+			const operatorKey = PrivateKey.fromString(req.body.operatorKey);
+			const client = Client.forTestnet().setOperator(operatorId, operatorKey);
+
+			const newAccountId = AccountId.fromString(req.body.master_wallet_id);
+			
+			//Create the account info query
+			const query = new AccountInfoQuery()
+			.setAccountId(newAccountId);
+
+			//Sign with client operator private key and submit the query to a Hedera network
+			var accountInfo = await query.execute(client);
+
+			// accountInfo = JSON.stringify(accountInfo);
+
+
+			// await token_data.save();
+			res.send(accountInfo);
+		} catch (err) {
+			addBreadcrumb(req.tag, err);
+			res.status(500).send({
+				success: false,
+				msg: err.message,
+			});
+		}
+	}
+);
+
+router.post(
+	"/master-account-balance",
+
+	// Request validator
+	// username,
+	// password,
+	// validatorReplaceBody,
+
+	// Handle request
+	async (req, res) => {
+		// const token_data = new token(req.body);
+		try {
+			const operatorId =  AccountId.fromString(req.body.operatorId);
+			const operatorKey = PrivateKey.fromString(req.body.operatorKey);
+			const client = Client.forTestnet().setOperator(operatorId, operatorKey);
+
+			const newAccountId = AccountId.fromString(req.body.master_wallet_id);
+			
+			const query = new AccountBalanceQuery()
+			.setAccountId(newAccountId);
+		
+			//Sign with the client operator private key and submit to a Hedera network
+			const tokenBalance = await query.execute(client);
+			
+			console.log("The token balance(s) for this account: " +tokenBalance.tokens.toString());
+
+
+			// await token_data.save();
+			res.send(tokenBalance);
 		} catch (err) {
 			addBreadcrumb(req.tag, err);
 			res.status(500).send({
@@ -242,5 +368,44 @@ router.post(
 
 
 
+router.post(
+	"/modify-token-type",
+
+	// Request validator
+	// username,
+	// password,
+	// validatorReplaceBody,
+
+	// Handle request
+	async (req, res) => {
+
+		try {
+			
+			const token_class_data = new tokenClass(req.body);
+			const fetchedData =  await tokenClass.find({ Company: req.body.Company, status: "active"});
+
+			//Take data from fetchedData other than modified data and resend through token_class_data
+
+			token_class_data.Company =  req.body.Company;
+			token_class_data.image = req.body.image;
+			token_class_data.baseFiatCurrencyCode =  req.body.baseFiatCurrencyCode;
+			token_class_data.baseFiatFxRate =  req.body.baseFiatFXRate;
+			token_class_data.status =  "active";
+			await token_class_data.save();
+
+			for( const item of fetchedData) {
+				await tokenClass.updateOne({_id: item._id, status: "active"}, {status: "inactive"})
+			}
+			res.send({ success: true });
+
+		} catch (err) {
+			addBreadcrumb(req.tag, err);
+			res.status(500).send({
+				success: false,
+				msg: err.message,
+			});
+		}
+	}
+);
 
 export default router;
