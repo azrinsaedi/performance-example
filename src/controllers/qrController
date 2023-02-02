@@ -1,0 +1,35 @@
+const crypto = require("crypto");
+
+const { promisify } = require("util");
+const jwt = require("jsonwebtoken");
+const QRCode = require("qrcode");
+// const countryCodes = require("currency-codes");
+
+const catchAsync = require("../utils/catchAsync");
+const User = require("../models/userModel");
+const UserAuditLog = require("../models/userAuditLogModel");
+
+const AppError = require("../utils/appError");
+const sendEmail = require("../utils/email");
+const Factory = require("./handlerFactory");
+
+exports.getPayLoadInfo = catchAsync(async (req, res, next) => {});
+
+const data = {
+	name: "Brian L",
+	age: "26",
+	company: "T05 Technologies",
+	id: "001",
+};
+
+const stringData = JSON.stringify(data);
+
+QRCode.toString(stringData, { type: "terminal" }, function (err, qr) {
+	if (err) return console.log("error occurred");
+	console.log(qr);
+});
+
+QRCode.toDataURL(stringData, function (err, code) {
+	if (err) return console.log("error occurred");
+	console.log(`code: ${code}`);
+});

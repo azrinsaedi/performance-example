@@ -55,66 +55,11 @@ requestLogger(app);
 app.use("/example", exampleRoute);
 app.use("/token", token);
 app.use("/you2api", you2api);
-app.use("/users", userRouter);
-app.use("/companies", companyRouter);
-app.use("/liquidityPartners", liquidityPartnerRouter);
-app.use("/test", testRouter);
-app.all("*", (req, res, next) => {
-	next(new Error(`Can't find ${req.originalUrl} on this server!`, 404));
-});
 
 // Error Middleware
 app.use(errorHandler);
 
 // Start Server
-const DB = process.env.DB_URL;
-
-mongoose.set('strictQuery', false);
-mongoose.connect(DB, {}).then(() => console.log("DB connection successful!"));
-
-const port = process.env.PORT || 3000;
-const server = app.listen(port, () => {
-	console.log(`App running on port ${port}...`);
-});
-
-process.on("unhandledRejection", (err) => {
-	console.log("UNHANDLED REJECTION! ?? Shutting down...");
-	console.log(err.name, err.message);
-	server.close(() => {
-		process.exit(1);
-	});
-});
-
-process.on("SIGTERM", () => {
-	console.log("?? SIGTERM RECEIVED. Shutting down gracefully");
-	server.close(() => {
-		console.log("?? Process terminated!");
-	});
-});
-
-// 1) MIDDLEWARES
-if (process.env.NODE_ENV === "development") {
-	app.use(morgan("dev"));
-}
-
-const __filename = fileURLToPath(import.meta.url);
-
-const __dirname = path.dirname(__filename);
-
-app.use(express.json());
-app.use(express.static(`${__dirname}/public`));
-
-app.use((req, res, next) => {
-	console.log("Hello from the middleware ??");
-	next();
-});
-
-app.use((req, res, next) => {
-	req.requestTime = new Date().toISOString();
-	next();
-});
-
-// console.log(`Countries: ${countryCodes.countries()}`);
-// console.log(`Country Codes: ${countryCodes.codes()}`);
-
-export { app };
+app.listen(process.env.PORT, () =>
+	logger.info(`Server listening on ${process.env.PORT}`)
+);
